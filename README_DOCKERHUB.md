@@ -1,12 +1,26 @@
 # Kafka Lag Monitor with Kamon and InfluxDB
-Example Kafka lag monitoring of consumer groups using Kafka 0.10.2.0, Kamon and InfluxDB.
+Kafka lag monitoring of consumer groups using Kafka 0.10.2.0, Kamon and InfluxDB.
 
 **NOTE**: It does not require access to Zookeeper.
 
-*This application is dockerized and the latest image can be found on Docker Hub [mwizner/kafka-kamon-lag-monitor](https://hub.docker.com/r/mwizner/kafka-kamon-lag-monitor).*
+## Supported tags:
+- `1.0.0`, `latest` [(v1.0.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.0)
 
+## How to use this image
 
-## Configuration
+### Running the container
+```sh
+docker run --name kafka-monitor -d mwizner/kafka-kamon-lag-monitor
+```
+
+### Exposed volume
+This image exposes a data volume `/etc/opt/kafka-kamon-lag-monitor`, which can be used to share key store and trust store files when using Kafka with SSL. To mount a host directory as the data volume you can use the `-v` flag, e.g.:
+```sh
+docker run -v ./kafka-keys:/etc/opt/kafka-kamon-lag-monitor \
+    -d mwizner/kafka-kamon-lag-monitor
+```
+
+### Configuration
 The application can be configured using the following environment variables:
 - `KAFKA_BOOTSTRAP_SERVERS` - List of Kafka servers used to bootstrap connections to Kafka.
 - `KAFKA_SECURITY_PROTOCOL` - Protocol used to communicate with brokers. `PLAINTEXT` is the default value, use `SSL` to communicate with brokers via SSL.
@@ -29,7 +43,7 @@ The following settings are optional and apply only if `KAFKA_SECURITY_PROTOCOL` 
 - `KAFKA_SSL_TRUSTSTORE_PASSWORD` - The password for the trust store file.
 
 An example config:
-```
+```sh
 KAFKA_BOOTSTRAP_SERVERS=localhost:9092
 KAFKA_SECURITY_PROTOCOL=SSL
 KAFKA_SSL_PROTOCOL=TLS
@@ -47,5 +61,10 @@ INFLUXDB_HOSTNAME=localhost
 INFLUXDB_PORT=8189
 ```
 
-## Changelog
- * **1.0.0** - Forked from [bfil/kafka-kamon-lag-monitor](https://github.com/bfil/kafka-kamon-lag-monitor) and dockerized.
+To run the container with a list of environment variables defined in an external file `env` you can use the `--env-file` flag, e.g.:
+```sh
+docker run --env-file env -d mwizner/kafka-kamon-lag-monitor
+```
+
+## Repository
+This project is open-sourced and can be found on [Github](https://github.com/mwz/kafka-kamon-lag-monitor).
