@@ -44,7 +44,7 @@ object Main extends App {
 
   new KamonLagMonitor(
     connectionProperties = connectionProperties,
-    consumerGroups = config.getStringList("kafka.lag-monitor.consumer-groups").asScala,
+    consumerGroups = config.getString("kafka.lag-monitor.consumer-groups").split(","),
     groupId = config.getString("kafka.lag-monitor.group-id"),
     clientId = config.getString("kafka.lag-monitor.client-id"),
     pollInterval = config.getDuration("kafka.lag-monitor.poll-interval")
