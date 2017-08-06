@@ -48,4 +48,5 @@ INFLUXDB_PORT=8189
 ```
 
 ## Changelog
- * **1.0.0** - Forked from [bfil/kafka-kamon-lag-monitor](https://github.com/bfil/kafka-kamon-lag-monitor) and dockerized.
+* **1.0.1** - Made `KAFKA_SECURITY_PROTOCOL` environment variable optional.
+* **1.0.0** - Forked from [bfil/kafka-kamon-lag-monitor](https://github.com/bfil/kafka-kamon-lag-monitor) and dockerized.

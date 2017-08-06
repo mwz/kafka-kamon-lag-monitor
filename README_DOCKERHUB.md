@@ -3,8 +3,11 @@ Kafka lag monitoring of consumer groups using Kafka 0.10.2.0, Kamon and InfluxDB
 
 **NOTE**: It does not require access to Zookeeper.
 
-## Supported tags:
-- `1.0.0`, `latest` [(v1.0.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.0)
+## Supported tags
+- `1.0.1`, `latest` [(v1.0.1)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.1)
+- `1.0.0` [(v1.0.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.0)
+
+See the [changelog](https://github.com/mwz/kafka-kamon-lag-monitor#changelog) for more details.
 
 ## How to use this image
 
