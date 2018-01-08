@@ -1,4 +1,7 @@
 # Kafka Lag Monitor with Kamon and InfluxDB
+[![GitHub version](https://img.shields.io/github/tag/mwz/kafka-kamon-lag-monitor.svg?label=release)](https://github.com/mwz/kafka-kamon-lag-monitor/releases)
+[![Docker Pulls](https://img.shields.io/docker/pulls/mwizner/kafka-kamon-lag-monitor.svg)](https://hub.docker.com/r/mwizner/kafka-kamon-lag-monitor)
+
 Example Kafka lag monitoring of consumer groups using Kafka 0.10.2.0, Kamon and InfluxDB.
 
 **NOTE**: It does not require access to Zookeeper.
@@ -14,6 +17,8 @@ The application can be configured using the following environment variables:
 - `MONITOR_CLIENT_ID` - Client id of the monitor.
 - `CONSUMER_GROUPS` - Consumer groups which offset will be monitored, e.g. `group1` or `group1,group2,group3`.
 - `POLL_INTERVAL` - (optional) Time interval for polling Kafka, defaults to `5 seconds`.
+- `GROUP_LAG_HISTOGRAM_NAME` - (optional) Name of the consumer group lag histogram, defaults to `kafka-consumer-groups-lag`.
+- `GROUP_STATE_HISTOGRAM_NAME` - (optional) Name of the consumer group state histogram, defaults to `kafka-consumer-groups-state`.
 - `TICK_INTERVAL` - (optional) Time interval for collecting the metrics, defaults to `10 seconds`.
 - `INFLUXDB_HOSTNAME` - Hostname on which InfluxDB is running.
 - `INFLUXDB_PORT` - Port on which InfluxDB is listening.
@@ -46,6 +51,13 @@ CONSUMER_GROUPS=service1,service2
 INFLUXDB_HOSTNAME=localhost
 INFLUXDB_PORT=8189
 ```
+
+## Metrics
+The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/kamon-core/metrics/instruments/#histograms) histogram instruments - the measurements are exposed in InfluxDb as `kafka-lag-monitor-timers` and tagged with `kafka-consumer-groups-lag` and `kafka-consumer-groups-state` entities. Kafka consumer group states get translated into the following values in the histogram:
+- **2** - `PreparingRebalance` or `CompletingRebalance`
+- **1** - `Stable`
+- **0** - `Dead` or `Empty`
+- **-1** - any other states
 
 ## Changelog
 * **1.0.1** - Made `KAFKA_SECURITY_PROTOCOL` environment variable optional.

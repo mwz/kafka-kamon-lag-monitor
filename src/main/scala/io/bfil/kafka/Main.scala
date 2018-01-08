@@ -5,21 +5,18 @@ import java.util.Properties
 
 import com.typesafe.config.ConfigFactory
 import kafka.admin.AdminClient
+import kamon.Kamon
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.StringDeserializer
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import kamon.Kamon
-import org.apache.log4j.BasicConfigurator
-import org.apache.log4j.{Level, Logger}
+import org.apache.log4j.{BasicConfigurator, Level, Logger}
 import org.slf4j.LoggerFactory
 
+import scala.collection.JavaConverters._
+import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 object Main extends App {
-
   Kamon.start()
 
   BasicConfigurator.configure()
@@ -30,7 +27,7 @@ object Main extends App {
   val connectionProperties = new Properties()
   connectionProperties.put("bootstrap.servers", config.getString("kafka.bootstrap-servers"))
 
-  if(config.getString("kafka.security-protocol") == "SSL") {
+  if (config.getString("kafka.security-protocol") == "SSL") {
     connectionProperties.put("security.protocol", config.getString("kafka.security-protocol"))
     connectionProperties.put("ssl.protocol", config.getString("kafka.ssl-protocol"))
     connectionProperties.put("ssl.key.password", config.getString("kafka.ssl-key-password"))
@@ -47,48 +44,84 @@ object Main extends App {
     consumerGroups = config.getString("kafka.lag-monitor.consumer-groups").split(","),
     groupId = config.getString("kafka.lag-monitor.group-id"),
     clientId = config.getString("kafka.lag-monitor.client-id"),
-    pollInterval = config.getDuration("kafka.lag-monitor.poll-interval")
+    pollInterval = config.getDuration("kafka.lag-monitor.poll-interval"),
+    groupLagHistogramName = config.getString("kafka.lag-monitor.group-lag-histogram-name"),
+    groupStateHistogramName = config.getString("kafka.lag-monitor.group-state-histogram-name")
   ).run()
-
 }
 
-class KamonLagMonitor(connectionProperties: Properties, consumerGroups: Seq[String], groupId: String, clientId: String, pollInterval: Duration) {
+class KamonLagMonitor(
+  connectionProperties: Properties,
+  consumerGroups: Seq[String],
+  groupId: String,
+  clientId: String,
+  pollInterval: Duration,
+  groupLagHistogramName: String,
+  groupStateHistogramName: String
+) {
 
   private val log = LoggerFactory.getLogger(classOf[KamonLagMonitor])
-
   private val consumerGroupService = new ConsumerGroupService(connectionProperties, groupId, clientId)
 
-  private def offsetLagHistogram(group: String, state: String, clientId: String, topic: String, partition: Long) =
-    Kamon.metrics.histogram(
-      name = "kafka-consumer-groups-lag",
-      tags = Map (
-        "consumer-group"       -> group,
-        "consumer-group-state" -> state,
-        "clientId"             -> clientId,
-        "topic"                -> topic,
-        "partition"            -> partition.toString
-      )
-    )
-
-  def run() =
-    new Thread(() => while(true) {
-      try {
-        consumerGroups foreach { group =>
-          val (groupState, assignmentStates) = consumerGroupService.collectGroupAssignment(group)
-          assignmentStates.sortBy(s => (s.clientId, s.topic, s.partition)) foreach { state =>
-            val histogram = offsetLagHistogram(group, groupState, state.clientId, state.topic, state.partition)
-            state.lag match {
-              case Some(lag) => histogram.record(lag)
-              case None      => // Track nothing
+  def run(): Unit =
+    new Thread(
+      () =>
+        while (true) {
+          try {
+            consumerGroups foreach { group =>
+              val (groupState, assignmentStates) = consumerGroupService.collectGroupAssignment(group)
+              assignmentStates.sortBy(s => (s.clientId, s.topic, s.partition)) foreach { state =>
+                state.lag foreach { lag =>
+                  recordConsumerGroupLag(group, state.clientId, state.topic, state.partition, lag)
+                }
+              }
+              recordConsumerGroupState(group, groupState)
             }
+          } catch {
+            case NonFatal(ex) => log.error(ex.getMessage, ex)
           }
-        }
-      } catch {
-        case NonFatal(ex) => log.error(ex.getMessage, ex)
+          Thread.sleep(pollInterval.toMillis)
       }
-      Thread.sleep(pollInterval.toMillis)
-    }).start()
+    ).start()
 
+  private def recordConsumerGroupLag(
+    group: String,
+    clientId: String,
+    topic: String,
+    partition: Long,
+    lag: Long
+  ): Unit = {
+    Kamon.metrics
+      .histogram(
+        groupLagHistogramName,
+        Map(
+          "consumer-group" -> group,
+          "clientId" -> clientId,
+          "topic" -> topic,
+          "partition" -> partition.toString
+        )
+      )
+      .record(lag)
+  }
+
+  private def recordConsumerGroupState(group: String, state: String): Unit = {
+    val groupState = state match {
+      case "Dead" | "Empty"                             => 0
+      case "Stable"                                     => 1
+      case "PreparingRebalance" | "CompletingRebalance" => 2
+      case _                                            => -1
+    }
+
+    Kamon.metrics
+      .histogram(
+        groupStateHistogramName,
+        Map(
+          "consumer-group" -> group,
+          "consumer-group-state" -> state
+        )
+      )
+      .record(groupState)
+  }
 }
 
 class ConsumerGroupService(connectionProperties: Properties, groupId: String, clientId: String) {
@@ -108,55 +141,92 @@ class ConsumerGroupService(connectionProperties: Properties, groupId: String, cl
     new KafkaConsumer(properties)
   }
 
-  def listGroups() = adminClient.listAllConsumerGroupsFlattened().map(_.groupId)
+  def listGroups(): List[String] = adminClient.listAllConsumerGroupsFlattened().map(_.groupId)
 
   def collectGroupAssignment(group: String): (String, Seq[PartitionAssignmentState]) = {
     val consumerGroupSummary = adminClient.describeConsumerGroup(group)
-    (consumerGroupSummary.state, consumerGroupSummary.consumers match {
-      case None => Seq.empty
-      case Some(consumers) =>
+    val state = consumerGroupSummary.state
+    val partitionAssignmentStates: Seq[PartitionAssignmentState] =
+      consumerGroupSummary.consumers.fold(Seq.empty[PartitionAssignmentState]) { consumers =>
         var assignedTopicPartitions = Seq.empty[TopicPartition]
         val offsets = adminClient.listGroupOffsets(group)
-        val rowsWithConsumer =
+        val rowsWithConsumer: List[PartitionAssignmentState] =
           if (offsets.isEmpty) List.empty
-          else consumers.sortWith(_.assignment.size > _.assignment.size).flatMap { consumerSummary =>
-            assignedTopicPartitions = assignedTopicPartitions ++ consumerSummary.assignment
-            val partitionOffsets = consumerSummary.assignment.map { topicPartition =>
-              topicPartition -> offsets.get(topicPartition)
-            }.toMap
-            collectConsumerAssignment(consumerSummary.assignment, partitionOffsets, s"${consumerSummary.host}", s"${consumerSummary.clientId}")
+          else {
+            consumers.sortBy(_.assignment.size).flatMap { consumerSummary =>
+              assignedTopicPartitions = assignedTopicPartitions ++ consumerSummary.assignment
+              val partitionOffsets = consumerSummary.assignment.map { topicPartition =>
+                topicPartition -> offsets.get(topicPartition)
+              }.toMap
+              collectConsumerAssignment(
+                consumerSummary.assignment,
+                partitionOffsets,
+                s"${consumerSummary.host}",
+                s"${consumerSummary.clientId}"
+              )
+            }
           }
         val rowsWithoutConsumer =
-          offsets.filterNot {
-            case (topicPartition, _) => assignedTopicPartitions.contains(topicPartition)
-          }.flatMap {
-            case (topicPartition, offset) => collectConsumerAssignment(Seq(topicPartition), Map(topicPartition -> Some(offset)), "No Host", "No Client ID")
-          }
+          offsets
+            .filterNot {
+              case (topicPartition, _) => assignedTopicPartitions.contains(topicPartition)
+            }
+            .flatMap {
+              case (topicPartition, offset) =>
+                collectConsumerAssignment(
+                  Seq(topicPartition),
+                  Map(topicPartition -> Some(offset)),
+                  "No Host",
+                  "No Client ID"
+                )
+            }
         rowsWithConsumer ++ rowsWithoutConsumer
-    })
-  }
-
-  private def collectConsumerAssignment(topicPartitions: Seq[TopicPartition], partitionOffsets: Map[TopicPartition, Option[Long]], host: String, clientId: String) =
-    getEndOffsets(topicPartitions)
-      .map { case (topicPartition, endOffset) =>
-        val consumerGroupOffset = partitionOffsets(topicPartition)
-        PartitionAssignmentState(host, clientId, topicPartition, consumerGroupOffset, endOffset, calculateLag(consumerGroupOffset, endOffset))
       }
 
-  private def getEndOffsets(topicPartitions: Seq[TopicPartition]): mutable.Map[TopicPartition, java.lang.Long] =
-    consumer.endOffsets(topicPartitions.asJava).asScala
+    (state, partitionAssignmentStates)
+  }
 
-  private def calculateLag(offset: Option[Long], endOffset: Long) =
+  private def collectConsumerAssignment(
+    topicPartitions: Seq[TopicPartition],
+    partitionOffsets: Map[TopicPartition, Option[Long]],
+    host: String,
+    clientId: String
+  ): Seq[PartitionAssignmentState] =
+    getEndOffsets(topicPartitions) map {
+      case (topicPartition, endOffset) =>
+        val consumerGroupOffset = partitionOffsets(topicPartition)
+        PartitionAssignmentState(
+          host,
+          clientId,
+          topicPartition,
+          consumerGroupOffset,
+          endOffset,
+          calculateLag(consumerGroupOffset, endOffset)
+        )
+    } toSeq
+
+  private def getEndOffsets(
+    topicPartitions: Seq[TopicPartition]
+  ): Map[TopicPartition, java.lang.Long] =
+    consumer.endOffsets(topicPartitions.asJava).asScala.toMap
+
+  private def calculateLag(offset: Option[Long], endOffset: Long): Option[Long] =
     offset.filter(_ != -1).map(offset => endOffset - offset)
 
-  def close() = {
+  def close(): Unit = {
     adminClient.close()
     consumer.close()
   }
-
 }
 
-case class PartitionAssignmentState(host: String, clientId: String, topicPartition: TopicPartition, offset: Option[Long], endOffset: Long, lag: Option[Long]) {
+case class PartitionAssignmentState(
+  host: String,
+  clientId: String,
+  topicPartition: TopicPartition,
+  offset: Option[Long],
+  endOffset: Long,
+  lag: Option[Long]
+) {
   val topic = topicPartition.topic
   val partition = topicPartition.partition
 }
