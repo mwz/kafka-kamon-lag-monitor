@@ -60,5 +60,6 @@ The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/
 - **-1** - any other states
 
 ## Changelog
+* **1.1.0** - Added metrics for consumer group state.
 * **1.0.1** - Made `KAFKA_SECURITY_PROTOCOL` environment variable optional.
 * **1.0.0** - Forked from [bfil/kafka-kamon-lag-monitor](https://github.com/bfil/kafka-kamon-lag-monitor) and dockerized.
