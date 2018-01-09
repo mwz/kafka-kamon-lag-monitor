@@ -31,6 +31,8 @@ The application can be configured using the following environment variables:
 - `MONITOR_CLIENT_ID` - Client id of the monitor.
 - `CONSUMER_GROUPS` - Consumer groups which offset will be monitored, e.g. `group1` or `group1,group2,group3`.
 - `POLL_INTERVAL` - (optional) Time interval for polling Kafka, defaults to `5 seconds`.
+- `GROUP_LAG_HISTOGRAM_NAME` - (optional) Name of the consumer group lag histogram, defaults to `kafka-consumer-groups-lag`.
+- `GROUP_STATE_HISTOGRAM_NAME` - (optional) Name of the consumer group state histogram, defaults to `kafka-consumer-groups-state`.
 - `TICK_INTERVAL` - (optional) Time interval for collecting the metrics, defaults to `10 seconds`.
 - `INFLUXDB_HOSTNAME` - Hostname on which InfluxDB is running.
 - `INFLUXDB_PORT` - Port on which InfluxDB is listening.
@@ -68,6 +70,13 @@ To run the container with a list of environment variables defined in an external
 ```sh
 docker run --env-file env -d mwizner/kafka-kamon-lag-monitor
 ```
+
+## Metrics
+The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/kamon-core/metrics/instruments/#histograms) histogram instruments - the measurements are exposed in InfluxDb as `kafka-lag-monitor-timers` and tagged with `kafka-consumer-groups-lag` and `kafka-consumer-groups-state` entities. Kafka consumer group states get translated into the following values in the histogram:
+- **2** - `PreparingRebalance` or `CompletingRebalance`
+- **1** - `Stable`
+- **0** - `Dead` or `Empty`
+- **-1** - any other states
 
 ## Repository
 This project is open-sourced and can be found on [Github](https://github.com/mwz/kafka-kamon-lag-monitor).
