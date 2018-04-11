@@ -109,7 +109,7 @@ class KamonLagMonitor(
       case "Dead" | "Empty"                             => 0
       case "Stable"                                     => 1
       case "PreparingRebalance" | "CompletingRebalance" => 2
-      case _                                            => -1
+      case _                                            => 3
     }
 
     Kamon.metrics
@@ -176,8 +176,8 @@ class ConsumerGroupService(connectionProperties: Properties, groupId: String, cl
                 collectConsumerAssignment(
                   Seq(topicPartition),
                   Map(topicPartition -> Some(offset)),
-                  "No Host",
-                  "No Client ID"
+                  "NoHost",
+                  "NoClientID"
                 )
             }
         rowsWithConsumer ++ rowsWithoutConsumer

@@ -2,7 +2,7 @@
 [![GitHub version](https://img.shields.io/github/tag/mwz/kafka-kamon-lag-monitor.svg?label=release)](https://github.com/mwz/kafka-kamon-lag-monitor/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/mwizner/kafka-kamon-lag-monitor.svg)](https://hub.docker.com/r/mwizner/kafka-kamon-lag-monitor)
 
-Example Kafka lag monitoring of consumer groups using Kafka 0.10.2.0, Kamon and InfluxDB.
+Example Kafka lag monitoring of consumer groups using Kafka AdminClient, Kamon and InfluxDB.
 
 **NOTE**: It does not require access to Zookeeper.
 
@@ -53,11 +53,11 @@ INFLUXDB_PORT=8189
 ```
 
 ## Metrics
-The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/kamon-core/metrics/instruments/#histograms) histogram instruments - the measurements are exposed in InfluxDb as `kafka-lag-monitor-timers` and tagged with `kafka-consumer-groups-lag` and `kafka-consumer-groups-state` entities. Kafka consumer group states get translated into the following values in the histogram:
-- **2** - `PreparingRebalance` or `CompletingRebalance`
-- **1** - `Stable`
+The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/kamon-core/metrics/instruments/#histograms) histogram instruments - the measurements are exposed in InfluxDB as `kafka-lag-monitor-timers` and tagged with `kafka-consumer-groups-lag` and `kafka-consumer-groups-state` entities. Kafka consumer group states get translated into the following values in the histogram:
 - **0** - `Dead` or `Empty`
-- **-1** - any other states
+- **1** - `Stable`
+- **2** - `PreparingRebalance` or `CompletingRebalance`
+- **3** - any other states
 
 ## Changelog
 * **1.1.0** - Added metrics for consumer group state.
