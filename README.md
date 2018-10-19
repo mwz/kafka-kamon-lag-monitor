@@ -22,6 +22,8 @@ The application can be configured using the following environment variables:
 - `TICK_INTERVAL` - (optional) Time interval for collecting the metrics, defaults to `10 seconds`.
 - `INFLUXDB_HOSTNAME` - Hostname on which InfluxDB is running.
 - `INFLUXDB_PORT` - Port on which InfluxDB is listening.
+- `EXIT_ON_ERROR` - (optional) Exit with code 1 on any error thrown in the app, defaults to `false`.
+  If you're running this in docker, you can use the `--restart unless-stopped` flag to restart the app when it exits.
 
 The following settings are optional and apply only if `KAFKA_SECURITY_PROTOCOL` is set to `SSL`.
 - `KAFKA_SSL_PROTOCOL` - The SSL protocol used to generate the SSLContext, e.g. `TLS`.
@@ -50,6 +52,7 @@ MONITOR_CLIENT_ID=lag-monitor
 CONSUMER_GROUPS=service1,service2
 INFLUXDB_HOSTNAME=localhost
 INFLUXDB_PORT=8189
+EXIT_ON_ERROR=true
 ```
 
 ## Metrics
@@ -60,6 +63,7 @@ The app records Kafka metrics using [Kamon](http://kamon.io/documentation/0.6.x/
 - **3** - any other states
 
 ## Changelog
+* **1.3.0** - Introduced a new config option to exit the application on error.
 * **1.2.0** - Fixed InfluxDB parsing issue & changed the consumer group state metric value to 3 for any unrecognised consumer group states.
 * **1.1.0** - Added metrics for consumer group state.
 * **1.0.1** - Made `KAFKA_SECURITY_PROTOCOL` environment variable optional.
