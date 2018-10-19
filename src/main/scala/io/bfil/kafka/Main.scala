@@ -46,7 +46,8 @@ object Main extends App {
     clientId = config.getString("kafka.lag-monitor.client-id"),
     pollInterval = config.getDuration("kafka.lag-monitor.poll-interval"),
     groupLagHistogramName = config.getString("kafka.lag-monitor.group-lag-histogram-name"),
-    groupStateHistogramName = config.getString("kafka.lag-monitor.group-state-histogram-name")
+    groupStateHistogramName = config.getString("kafka.lag-monitor.group-state-histogram-name"),
+    exitOnError = config.getBoolean("exit-on-error")
   ).run()
 }
 
@@ -57,7 +58,8 @@ class KamonLagMonitor(
   clientId: String,
   pollInterval: Duration,
   groupLagHistogramName: String,
-  groupStateHistogramName: String
+  groupStateHistogramName: String,
+  exitOnError: Boolean
 ) {
 
   private val log = LoggerFactory.getLogger(classOf[KamonLagMonitor])
@@ -78,7 +80,9 @@ class KamonLagMonitor(
               recordConsumerGroupState(group, groupState)
             }
           } catch {
-            case NonFatal(ex) => log.error(ex.getMessage, ex)
+            case NonFatal(ex) =>
+              log.error(ex.getMessage, ex)
+              if (exitOnError) System.exit(1)
           }
           Thread.sleep(pollInterval.toMillis)
       }

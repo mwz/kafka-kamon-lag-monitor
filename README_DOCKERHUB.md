@@ -15,14 +15,15 @@ See the [changelog](https://github.com/mwz/kafka-kamon-lag-monitor#changelog) fo
 
 ### Running the container
 ```sh
-docker run --name kafka-monitor -d mwizner/kafka-kamon-lag-monitor
+docker run --name kafka-monitor --restart unless-stopped -d mwizner/kafka-kamon-lag-monitor
 ```
 
 ### Exposed volume
 This image exposes a data volume `/etc/opt/kafka-kamon-lag-monitor`, which can be used to share key store and trust store files when using Kafka with SSL. To mount a host directory as the data volume you can use the `-v` flag, e.g.:
 ```sh
 docker run -v ./kafka-keys:/etc/opt/kafka-kamon-lag-monitor \
-    -d mwizner/kafka-kamon-lag-monitor
+    --restart unless-stopped \
+    -d mwizner/kafka-kamon-lag-monitor \
 ```
 
 ### Configuration
@@ -38,6 +39,8 @@ The application can be configured using the following environment variables:
 - `TICK_INTERVAL` - (optional) Time interval for collecting the metrics, defaults to `10 seconds`.
 - `INFLUXDB_HOSTNAME` - Hostname on which InfluxDB is running.
 - `INFLUXDB_PORT` - Port on which InfluxDB is listening.
+- `EXIT_ON_ERROR` - (optional) Exit with code 1 on any error thrown in the app, defaults to `false`.
+  If you're running this in docker, you can use the `--restart unless-stopped` flag to restart the app when it exits.
 
 The following settings are optional and apply only if `KAFKA_SECURITY_PROTOCOL` is set to `SSL`.
 - `KAFKA_SSL_PROTOCOL` - The SSL protocol used to generate the SSLContext, e.g. `TLS`.
@@ -66,11 +69,12 @@ MONITOR_CLIENT_ID=lag-monitor
 CONSUMER_GROUPS=service1,service2
 INFLUXDB_HOSTNAME=localhost
 INFLUXDB_PORT=8189
+EXIT_ON_ERROR=true
 ```
 
 To run the container with a list of environment variables defined in an external file `env` you can use the `--env-file` flag, e.g.:
 ```sh
-docker run --env-file env -d mwizner/kafka-kamon-lag-monitor
+docker run --env-file env --restart unless-stopped -d mwizner/kafka-kamon-lag-monitor
 ```
 
 ## Metrics
