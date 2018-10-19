@@ -4,7 +4,8 @@ Kafka lag monitoring of consumer groups using Kafka AdminClient, Kamon and Influ
 **NOTE**: It does not require access to Zookeeper.
 
 ## Supported tags
-- `1.2.0`, `latest` [(v1.2.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.2.0)
+- `1.3.0`, `latest` [(v1.2.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.3.0)
+- `1.2.0` [(v1.2.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.2.0)
 - `1.1.0` [(v1.1.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.1.0)
 - `1.0.1` [(v1.0.1)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.1)
 - `1.0.0` [(v1.0.0)](https://github.com/mwz/kafka-kamon-lag-monitor/releases/tag/v1.0.0)
